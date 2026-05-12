@@ -62,11 +62,13 @@ async function init() {
   const { idp, next } = readConfig();
   const session = new Session();
 
-  // Hydrate any prior session OR finalize a redirect-back from the IdP.
+  // Finalize a redirect-back from the IdP (if we're coming back),
+  // otherwise try to restore a previous session from storage.
   try {
-    await session.init();
     if (location.search.includes('code=')) {
       await session.handleRedirectFromLogin();
+    } else if (!session.isActive) {
+      await session.restore();
     }
   } catch (err) {
     setStatus(`Sign-in failed: ${err.message}`, true);
