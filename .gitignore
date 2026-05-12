@@ -1,0 +1,8 @@
+# Editor / OS artefacts
+.DS_Store
+.vscode/
+*.swp
+*~
+
+# Optional local dev-server output
+node_modules/

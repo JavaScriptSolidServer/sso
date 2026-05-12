@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sign in to Solid</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Universal one-click sign-in for Solid pods. Click the button — you're at your pod.">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="JSS SSO — one click, you're at your pod">
+  <meta property="og:description" content="Universal Solid login. No username, no IdP picker, no friction.">
+  <meta property="og:type" content="website">
+
+  <style>
+    :root {
+      --bg: #fafbfc;
+      --fg: #1f2328;
+      --accent: #6839e6;
+      --accent-hover: #5328d4;
+      --muted: #656d76;
+      --error: #cf222e;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1117;
+        --fg: #e6edf3;
+        --accent: #a78bfa;
+        --accent-hover: #c4b5fd;
+        --muted: #8b949e;
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg); color: var(--fg);
+    }
+    main {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 2rem; gap: 2rem;
+      text-align: center;
+    }
+    h1 { font-size: clamp(1.5rem, 4vw, 2.5rem); margin: 0; font-weight: 600; }
+    p.tagline { color: var(--muted); margin: 0; max-width: 32rem; }
+    button#signin {
+      font-size: 1.25rem;
+      padding: 1rem 2.5rem;
+      background: var(--accent); color: white;
+      border: none; border-radius: 999px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.15s, transform 0.05s;
+      min-width: 14rem;
+    }
+    button#signin:hover { background: var(--accent-hover); }
+    button#signin:active { transform: scale(0.98); }
+    button#signin:disabled { opacity: 0.6; cursor: progress; }
+    #status { color: var(--muted); font-size: 0.9rem; min-height: 1.5em; }
+    #status.error { color: var(--error); }
+    footer {
+      margin-top: 2rem; color: var(--muted); font-size: 0.85rem;
+    }
+    footer a { color: inherit; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Sign in to Solid</h1>
+    <p class="tagline">One click. We resolve your Nostr / WebID. You land at your pod.</p>
+    <button id="signin">Sign in</button>
+    <p id="status" aria-live="polite"></p>
+    <footer>
+      <a href="https://github.com/JavaScriptSolidServer/sso">source</a>
+      &nbsp;·&nbsp;
+      <a href="https://github.com/JavaScriptSolidServer/JavaScriptSolidServer">JSS</a>
+    </footer>
+  </main>
+  <script type="module" src="./login.js"></script>
+</body>
+</html>
