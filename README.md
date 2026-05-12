@@ -5,13 +5,29 @@ You click, the universe figures out who you are, you land at your pod.
 
 ## What it is
 
-A static HTML page (no build step, no server) that wraps the
-[xlogin](https://github.com/melvincarvalho/xlogin) widget with the
-smallest possible UI surface — a single button. xlogin handles the
-actual sign-in flow (Solid-OIDC + DPoP, Nostr NIP-07/98, signer-
-extension auto-detect with fallback to provider picker); the SSO
-page's job is just to be a big centered "Sign in" button and to
-redirect the user to their pod once xlogin reports success.
+A static HTML page (no build step, no server, no dependencies)
+that wraps the JSS resolver chain we shipped in
+[JSS#408](https://github.com/JavaScriptSolidServer/JavaScriptSolidServer/pull/408)
+with the smallest possible UI surface — one big button.
+
+**Happy path** (one click, one signer-prompt, no IdP page):
+
+1. User clicks **Sign in**
+2. `window.nostr.getPublicKey()` — signer extension hands us the pubkey
+3. `fetch <resolver>/.well-known/did/nostr/<pubkey>.json` — DID document with `alsoKnownAs`
+4. Redirect to the WebID's pod root
+
+**Failure path** — at every step, if something's not set up, the
+page shows a precise diagnosis + the user's next concrete action
+(install a signer, link the Nostr key to a pod, try a different
+resolver, etc.). PoC philosophy: assume everything works; gracefully
+degrade with guidance when it doesn't.
+
+**Trade-off**: the user lands at their pod *without* an
+authenticated Solid-OIDC session. They can browse public content;
+anything WAC-protected prompts for a real session via whatever app
+needs it. For the "magic SSO landing" promise that's enough — the
+full OIDC + DPoP session is on the v0.2 roadmap.
 
 No username box. No IdP picker. No "what app are you logging in from?"
 question. Click → resolve → arrive.
