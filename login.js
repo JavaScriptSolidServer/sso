@@ -62,17 +62,27 @@ async function init() {
   const { idp, next } = readConfig();
   const session = new Session();
 
-  // Finalize a redirect-back from the IdP (if we're coming back),
-  // otherwise try to restore a previous session from storage.
-  try {
-    if (location.search.includes('code=')) {
+  // Two distinct entry conditions, two distinct failure semantics:
+  //
+  //   - Returning from the IdP (URL has `?code=...`): finalize via
+  //     handleRedirectFromLogin(). A failure here IS a real sign-in
+  //     error worth surfacing to the user.
+  //
+  //   - Fresh visit: try to restore() a prior session from storage.
+  //     A failure here is normal — first visit, no stored tokens,
+  //     "Missing refresh data" etc. Swallow silently and show the
+  //     button.
+  if (location.search.includes('code=')) {
+    try {
       await session.handleRedirectFromLogin();
-    } else if (!session.isActive) {
-      await session.restore();
+    } catch (err) {
+      setStatus(`Sign-in failed: ${err.message}`, true);
+      return;
     }
-  } catch (err) {
-    setStatus(`Sign-in failed: ${err.message}`, true);
-    return;
+  } else if (!session.isActive) {
+    try {
+      await session.restore();
+    } catch { /* no prior session — expected on fresh visit */ }
   }
 
   if (session.isActive && session.webId) {
