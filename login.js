@@ -110,7 +110,12 @@ async function discoverIdpFromWebId(webId) {
     });
     if (profileRes.ok) {
       const profile = await profileRes.json();
-      const issuer = profile['solid:oidcIssuer']
+      // JSS profiles declare the IdP via the bare term `oidcIssuer`
+      // (aliased to solid:oidcIssuer in @context). Try the bare form
+      // FIRST, then the prefixed / full-URI forms as fallbacks for
+      // profiles emitted by other servers.
+      const issuer = profile.oidcIssuer
+        || profile['solid:oidcIssuer']
         || profile['http://www.w3.org/ns/solid/terms#oidcIssuer']
         || profile.solid?.oidcIssuer;
       const issuerStr = typeof issuer === 'string'
