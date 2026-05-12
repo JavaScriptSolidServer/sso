@@ -1,29 +1,28 @@
 // JSS SSO — one-click Solid sign-in.
 //
-// Flow:
-//   1. Page loads. If a Solid-OIDC session was already restored
-//      (handleIncomingRedirect), redirect straight to the user's
-//      pod root. Skip the button.
-//   2. Otherwise: button click → `login()` triggers a redirect to
-//      the configured IdP's /auth endpoint. The IdP handles the
-//      actual identity proof (Schnorr / passkey / password) and
-//      redirects back here with auth state.
-//   3. On return: step 1 fires, the session is hydrated, and we
-//      redirect to the resolved WebID's pod root.
+// Uses the JSS org's own `solid-oidc` package — a zero-build,
+// single-file (~600 lines), zero-dependency Solid-OIDC client.
+// Source: https://github.com/JavaScriptSolidServer/solid-oidc
 //
-// Configurable via URL params or localStorage:
+// Flow:
+//   1. Page loads. If a previous session is in localStorage, hydrate
+//      it (session.init()). If the URL is a redirect-back, finalize
+//      it (session.handleRedirectFromLogin()). Either way, if we
+//      end up active, jump to the user's pod and skip the button.
+//   2. Otherwise: button click → session.login(idp, redirectUri)
+//      triggers a redirect to the configured IdP's /auth endpoint.
+//      The IdP handles the actual identity proof (Schnorr / passkey /
+//      password) and redirects back here.
+//   3. On return: step 1 finalizes the session and we redirect to
+//      the resolved WebID's pod root.
+//
+// Configurable via URL params (also persisted to localStorage so a
+// freshly-redirected-back page knows where to send the user even if
+// the params got stripped on the IdP round-trip):
 //   ?idp=<oidc-issuer>      — defaults to https://solid.social
 //   ?next=<destination-url>  — defaults to the WebID's pod root
-//
-// Both are persisted so a freshly-redirected-back page knows
-// where to send the user even if the params got stripped on the
-// IdP round-trip.
 
-import {
-  login,
-  handleIncomingRedirect,
-  getDefaultSession,
-} from 'https://esm.sh/@inrupt/[email protected]';
+import Session from 'https://esm.sh/solid-oidc';
 
 const DEFAULT_IDP = 'https://solid.social';
 
@@ -61,20 +60,21 @@ function podRootFromWebId(webId) {
 
 async function init() {
   const { idp, next } = readConfig();
+  const session = new Session();
 
-  // If we're coming back from the IdP, hydrate the session.
+  // Hydrate any prior session OR finalize a redirect-back from the IdP.
   try {
-    await handleIncomingRedirect({
-      restorePreviousSession: true,
-    });
+    await session.init();
+    if (location.search.includes('code=')) {
+      await session.handleRedirectFromLogin();
+    }
   } catch (err) {
     setStatus(`Sign-in failed: ${err.message}`, true);
     return;
   }
 
-  const session = getDefaultSession();
-  if (session.info.isLoggedIn && session.info.webId) {
-    const webId = session.info.webId;
+  if (session.isActive && session.webId) {
+    const webId = session.webId;
     const dest = next || podRootFromWebId(webId);
     setStatus(`Signed in as ${webId}. Taking you to your pod…`);
     // Clear the saved `next` so a subsequent visit doesn't re-use it.
@@ -93,11 +93,7 @@ async function init() {
     localStorage.setItem('jss-sso:idp', idp);
     if (next) localStorage.setItem('jss-sso:next', next);
     try {
-      await login({
-        oidcIssuer: idp,
-        redirectUrl: location.origin + location.pathname,
-        clientName: 'JSS SSO',
-      });
+      await session.login(idp, location.origin + location.pathname);
     } catch (err) {
       setStatus(`Could not start sign-in: ${err.message}`, true);
       button.disabled = false;
