@@ -101,23 +101,36 @@ Three sensible deployment targets:
 
 ## Status
 
-**v0.1 — proof of concept**. Demonstrates the one-button UX end-to-end
-against `solid.social` as the IdP. Same-pod resolution works zero-typing
-(JSS shipped the underlying resolver chain in
+**0.0.1 — proof of concept**. Demonstrates the one-button UX
+end-to-end against `solid.social` as the resolver. Users registered
+with solid.social land at their pod in one click. Resolution uses
+the JSS resolver chain shipped in
 [#408](https://github.com/JavaScriptSolidServer/JavaScriptSolidServer/pull/408)
 through
-[#418](https://github.com/JavaScriptSolidServer/JavaScriptSolidServer/pull/418)).
+[#418](https://github.com/JavaScriptSolidServer/JavaScriptSolidServer/pull/418).
 
 ## Roadmap
 
-- **v0.1** — Single-button OIDC against a configurable IdP. ✅ (this commit)
-- **v0.2** — Auto-discover IdP from a Nostr extension's pubkey (NIP-05 or
-  did:nostr DID-doc).
-- **v0.3** — Direct Nostr-relay resolution (sits on top of
-  [JSS #414](https://github.com/JavaScriptSolidServer/JavaScriptSolidServer/issues/414)).
-  Removes the configured-IdP dependency for cross-pod identities.
-- **v0.4** — Passkey-only fallback. Sign in without ever installing a
-  Nostr extension.
+Following JSS's own 0.0.x versioning (small, frequent bumps, each
+adding one capability).
+
+- **0.0.1** — One-button flow against a single hardcoded resolver. ✅
+- **0.0.2** — Step-by-step coaching UI: checklist that ticks each
+  step (extension detected, pubkey resolved, DID doc found, WebID
+  extracted, redirect) instead of a one-shot status line.
+- **0.0.3** — Multi-resolver fallback: try a configurable list of
+  resolvers in order before giving up.
+- **0.0.4** — Direct Nostr-relay resolution. Sits on top of
+  [JSS#414](https://github.com/JavaScriptSolidServer/JavaScriptSolidServer/issues/414).
+  Removes the hardcoded-resolver dependency entirely.
+- **0.0.5** — User-preferred resolver memory: first successful
+  resolution is cached in `localStorage` so subsequent visits skip
+  straight to the right host.
+- **0.0.6** — Authenticated session: optional NIP-98 → DPoP
+  exchange against the IdP, so the user lands at their pod
+  already signed in (not just navigated there).
+- **0.0.7** — Passkey-only fallback. Sign in without a Nostr
+  extension via WebAuthn.
 
 ## Why a separate repo?
 
