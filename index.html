@@ -77,6 +77,13 @@
       <a href="https://github.com/JavaScriptSolidServer/JavaScriptSolidServer">JSS</a>
     </footer>
   </main>
-  <script type="module" src="./login.js"></script>
+  <!--
+    xlogin handles the actual sign-in flow (Solid-OIDC + DPoP,
+    Nostr NIP-07/98, signer-extension auto-detect). It's a single
+    script tag — no build step, no install. See
+    https://github.com/melvincarvalho/xlogin
+    -->
+  <script src="https://unpkg.com/xlogin"></script>
+  <script src="./login.js"></script>
 </body>
 </html>

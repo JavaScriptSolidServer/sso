@@ -1,40 +1,25 @@
 // JSS SSO — one-click Solid sign-in.
 //
-// Uses the JSS org's own `solid-oidc` package — a zero-build,
-// single-file (~600 lines), zero-dependency Solid-OIDC client.
-// Source: https://github.com/JavaScriptSolidServer/solid-oidc
+// Uses the xlogin library (https://github.com/melvincarvalho/xlogin)
+// for the actual sign-in flow. xlogin is a one-script-tag auth
+// widget that handles both Nostr (NIP-07 / NIP-98) and Solid-OIDC
+// (with DPoP) login, falling back to a provider picker when no
+// signer extension is detected. It exposes `window.xlogin.id` as
+// the resolved WebID (or Nostr pubkey) and fires an `xlogin` event
+// when authentication succeeds.
 //
-// Flow:
-//   1. Page loads. If a previous session is in localStorage, hydrate
-//      it (session.init()). If the URL is a redirect-back, finalize
-//      it (session.handleRedirectFromLogin()). Either way, if we
-//      end up active, jump to the user's pod and skip the button.
-//   2. Otherwise: button click → session.login(idp, redirectUri)
-//      triggers a redirect to the configured IdP's /auth endpoint.
-//      The IdP handles the actual identity proof (Schnorr / passkey /
-//      password) and redirects back here.
-//   3. On return: step 1 finalizes the session and we redirect to
-//      the resolved WebID's pod root.
+// Our role here is the smallest possible UI surface — a big
+// centered button — that triggers xlogin and then redirects the
+// user to their pod root once xlogin reports success.
 //
-// Configurable via URL params (also persisted to localStorage so a
-// freshly-redirected-back page knows where to send the user even if
-// the params got stripped on the IdP round-trip):
-//   ?idp=<oidc-issuer>      — defaults to https://solid.social
+// Configurable via URL params:
 //   ?next=<destination-url>  — defaults to the WebID's pod root
-
-import Session from 'https://esm.sh/solid-oidc';
-
-const DEFAULT_IDP = 'https://solid.social';
+//   (xlogin handles IdP selection itself; no `idp` param needed.)
 
 function readConfig() {
   const params = new URLSearchParams(location.search);
-  const idp = params.get('idp')
-    || localStorage.getItem('jss-sso:idp')
-    || DEFAULT_IDP;
-  const next = params.get('next')
-    || localStorage.getItem('jss-sso:next')
-    || '';
-  return { idp, next };
+  const next = params.get('next') || '';
+  return { next };
 }
 
 function setStatus(msg, isError = false) {
@@ -46,11 +31,10 @@ function setStatus(msg, isError = false) {
 
 function podRootFromWebId(webId) {
   // WebID is typically `https://<pod-host>/profile/card.jsonld#me`
-  // or `https://<pod-host>/<name>/profile/card.jsonld#me`. The pod
-  // root is the origin (+ pod-name segment if present). For v0.1
-  // we just go to the origin — works for both subdomain-mode pods
-  // and path-mode root pods. Path-mode named pods land at the
-  // server root and can navigate from there.
+  // or `https://<pod-host>/<name>/profile/card.jsonld#me`. We send
+  // the user to the WebID's origin (the pod's server root). Works
+  // for both subdomain-mode pods and path-mode root pods. Path-mode
+  // named pods land at the server root and can navigate from there.
   try {
     return new URL('/', webId).href;
   } catch {
@@ -58,59 +42,49 @@ function podRootFromWebId(webId) {
   }
 }
 
-async function init() {
-  const { idp, next } = readConfig();
-  const session = new Session();
+function redirectToPod() {
+  const { next } = readConfig();
+  const webId = window.xlogin?.id;
+  if (!webId) return false;
+  const dest = next || podRootFromWebId(webId);
+  if (!dest) return false;
+  setStatus(`Signed in as ${webId}. Taking you to your pod…`);
+  setTimeout(() => { location.href = dest; }, 800);
+  return true;
+}
 
-  // Two distinct entry conditions, two distinct failure semantics:
-  //
-  //   - Returning from the IdP (URL has `?code=...`): finalize via
-  //     handleRedirectFromLogin(). A failure here IS a real sign-in
-  //     error worth surfacing to the user.
-  //
-  //   - Fresh visit: try to restore() a prior session from storage.
-  //     A failure here is normal — first visit, no stored tokens,
-  //     "Missing refresh data" etc. Swallow silently and show the
-  //     button.
-  if (location.search.includes('code=')) {
-    try {
-      await session.handleRedirectFromLogin();
-    } catch (err) {
-      setStatus(`Sign-in failed: ${err.message}`, true);
-      return;
-    }
-  } else if (!session.isActive) {
-    try {
-      await session.restore();
-    } catch { /* no prior session — expected on fresh visit */ }
-  }
-
-  if (session.isActive && session.webId) {
-    const webId = session.webId;
-    const dest = next || podRootFromWebId(webId);
-    setStatus(`Signed in as ${webId}. Taking you to your pod…`);
-    // Clear the saved `next` so a subsequent visit doesn't re-use it.
-    localStorage.removeItem('jss-sso:next');
-    setTimeout(() => { location.href = dest; }, 800);
+function init() {
+  // If xlogin already reports an active identity (page reload after
+  // a successful sign-in), redirect immediately.
+  if (window.xlogin?.id) {
+    redirectToPod();
     return;
   }
 
-  // Fresh visit. Wire the button.
+  // Otherwise listen for the xlogin event the library fires on
+  // successful authentication.
+  document.addEventListener('xlogin', () => {
+    redirectToPod();
+  });
+
+  // Wire our centered button to trigger xlogin's modal.
   const button = document.querySelector('#signin');
   if (!button) return;
-  button.addEventListener('click', async () => {
-    button.disabled = true;
-    setStatus('Redirecting to your identity provider…');
-    // Persist config so the redirect back can find it.
-    localStorage.setItem('jss-sso:idp', idp);
-    if (next) localStorage.setItem('jss-sso:next', next);
-    try {
-      await session.login(idp, location.origin + location.pathname);
-    } catch (err) {
-      setStatus(`Could not start sign-in: ${err.message}`, true);
-      button.disabled = false;
+  button.addEventListener('click', () => {
+    if (!window.xlogin) {
+      setStatus('Sign-in widget not ready, please retry.', true);
+      return;
     }
+    setStatus('Choose your identity provider…');
+    window.xlogin.login();
   });
 }
 
-init();
+// xlogin loads asynchronously from CDN. Wait for window.xlogin to
+// exist before wiring the button (otherwise the user could click
+// before the widget is ready and get a no-op).
+if (window.xlogin) {
+  init();
+} else {
+  window.addEventListener('load', init);
+}

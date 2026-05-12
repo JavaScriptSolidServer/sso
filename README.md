@@ -5,12 +5,13 @@ You click, the universe figures out who you are, you land at your pod.
 
 ## What it is
 
-A static HTML page (no build step, no server) that wraps the standard
-Solid-OIDC flow with the smallest possible UI surface — a single button.
-The button kicks off OIDC against a configurable IdP, the IdP handles
-the actual identity proof (Schnorr via [Podkey](https://github.com/JavaScriptSolidServer/podkey)
-/ [xlogin](https://github.com/JavaScriptSolidServer/xlogin), passkey,
-or password), and the user lands at their pod root.
+A static HTML page (no build step, no server) that wraps the
+[xlogin](https://github.com/melvincarvalho/xlogin) widget with the
+smallest possible UI surface — a single button. xlogin handles the
+actual sign-in flow (Solid-OIDC + DPoP, Nostr NIP-07/98, signer-
+extension auto-detect with fallback to provider picker); the SSO
+page's job is just to be a big centered "Sign in" button and to
+redirect the user to their pod once xlogin reports success.
 
 No username box. No IdP picker. No "what app are you logging in from?"
 question. Click → resolve → arrive.
