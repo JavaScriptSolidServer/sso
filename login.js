@@ -194,7 +194,7 @@ async function flow() {
     setStatus(`Could not build redirect URL from: ${base}`, 'error');
     return false;
   }
-  setStatus(`Found your WebID: ${webId}. Taking you to ${base}…`);
+  setStatus(`Found your WebID: ${webId}. Taking you to ${base}…`, 'ok');
   // Hopping to the user's own pod is instant; an app-supplied ?next=
   // destination stays on screen for a beat so the user sees where
   // they're being sent before leaving this origin.
