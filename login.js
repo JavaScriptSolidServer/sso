@@ -27,6 +27,7 @@
 //   ?next=<url>        — destination after success (default pod root)
 
 const DEFAULT_RESOLVER = 'https://solid.social';
+const FALLBACK_RESOLVER = 'https://nostr.social'; // did-nostr.com source
 
 function readConfig() {
   const p = new URLSearchParams(location.search);
@@ -72,12 +73,40 @@ function podRootFromWebId(webId) {
   catch { return null; }
 }
 
+// Both "not linked" outcomes (404, and a synthesized DID doc with no
+// alsoKnownAs — nostr.social answers 200 for any valid key) get the
+// same coaching. Don't offer the fallback when we're already on it.
+function linkCoaching(resolver) {
+  const links = [
+    { label: 'How to link your Nostr key to a Solid pod', href: 'https://jss.live/docs/' },
+  ];
+  if (resolver !== FALLBACK_RESOLVER) {
+    const alt = new URLSearchParams(location.search);
+    alt.set('resolver', FALLBACK_RESOLVER);
+    links.push({ label: 'Try the fallback resolver (nostr.social)', href: `?${alt}` });
+  }
+  return links;
+}
+
+// Signer extensions can inject window.nostr a beat after page load;
+// don't declare "no signer" on a fast click without a short grace poll.
+function waitForSigner(ms = 1500) {
+  return new Promise((resolve) => {
+    if (window.nostr) return resolve(true);
+    const started = performance.now();
+    const poll = setInterval(() => {
+      if (window.nostr) { clearInterval(poll); resolve(true); }
+      else if (performance.now() - started > ms) { clearInterval(poll); resolve(false); }
+    }, 100);
+  });
+}
+
 async function flow() {
   const { resolver, next } = readConfig();
   setStatus('Reading your Nostr identity…');
 
   // Step 1 — signer extension present?
-  if (!window.nostr) {
+  if (!(await waitForSigner())) {
     setStatus(help(
       ['No Nostr signer detected. Install a browser extension that provides ',
        'window.nostr, then reload this page.'],
@@ -114,17 +143,9 @@ async function flow() {
       headers: { Accept: 'application/did+json, application/json' },
     });
     if (res.status === 404) {
-      // Fallback resolver: nostr.social serves the did-nostr.com
-      // source. Preserve the caller's other params (e.g. ?next=)
-      // when offering the switch.
-      const alt = new URLSearchParams(location.search);
-      alt.set('resolver', 'https://nostr.social');
       setStatus(help(
         ['Your Nostr key isn’t linked to a Solid pod at ', resolver, '. '],
-        [
-          { label: 'How to link your Nostr key to a Solid pod', href: 'https://jss.live/docs/' },
-          { label: 'Try the fallback resolver (nostr.social)', href: `?${alt}` },
-        ],
+        linkCoaching(resolver),
       ), 'error');
       return false;
     }
@@ -145,8 +166,8 @@ async function flow() {
   const webId = aka.find((x) => typeof x === 'string' && /^https?:\/\//.test(x));
   if (!webId) {
     setStatus(help(
-      [`Your did:nostr document at ${resolver} doesn’t include an alsoKnownAs WebID. `],
-      [{ label: 'How to fix this', href: 'https://jss.live/docs/' }],
+      [`Your Nostr key isn’t linked to a Solid pod at ${resolver} — the DID document has no alsoKnownAs WebID. `],
+      linkCoaching(resolver),
     ), 'error');
     return false;
   }
@@ -163,6 +184,10 @@ async function flow() {
   let dest;
   try {
     const url = new URL(base);
+    if (!/^https?:$/.test(url.protocol)) {
+      setStatus(`Refusing to redirect to a non-HTTP destination: ${base}`, 'error');
+      return false;
+    }
     url.searchParams.set('webid', `did:nostr:${pubkey}`);
     dest = url.href;
   } catch {
@@ -170,22 +195,45 @@ async function flow() {
     return false;
   }
   setStatus(`Found your WebID: ${webId}. Taking you to ${base}…`);
-  setTimeout(() => { location.href = dest; }, 800);
+  // Hopping to the user's own pod is instant; an app-supplied ?next=
+  // destination stays on screen for a beat so the user sees where
+  // they're being sent before leaving this origin.
+  setTimeout(() => { location.href = dest; }, next ? 1500 : 0);
   return true;
 }
 
 function wire() {
   const button = document.querySelector('#signin');
   if (!button) return;
-  button.addEventListener('click', async () => {
+
+  async function run() {
     button.disabled = true;
     button.setAttribute('aria-busy', 'true');
+    button.textContent = 'Signing in…';
     const ok = await flow();
     if (!ok) {
       button.disabled = false;
       button.removeAttribute('aria-busy');
+      button.textContent = 'Sign in';
     }
-  });
+  }
+
+  button.addEventListener('click', run);
+
+  if (new URLSearchParams(location.search).has('resolver')) {
+    // Arriving via a "Try the fallback resolver" link (or any explicit
+    // ?resolver=) carries a click's worth of intent — resume the flow
+    // instead of asking for a second click.
+    run();
+  } else {
+    // Soft pre-check: coach before the first click if no signer
+    // extension has announced itself.
+    setTimeout(() => {
+      if (!window.nostr && !button.disabled) {
+        setStatus('No Nostr signer detected yet — you’ll need a signer extension to sign in.');
+      }
+    }, 1500);
+  }
 }
 
 wire();
