@@ -114,11 +114,16 @@ async function flow() {
       headers: { Accept: 'application/did+json, application/json' },
     });
     if (res.status === 404) {
+      // Fallback resolver: nostr.social serves the did-nostr.com
+      // source. Preserve the caller's other params (e.g. ?next=)
+      // when offering the switch.
+      const alt = new URLSearchParams(location.search);
+      alt.set('resolver', 'https://nostr.social');
       setStatus(help(
         ['Your Nostr key isn’t linked to a Solid pod at ', resolver, '. '],
         [
           { label: 'How to link your Nostr key to a Solid pod', href: 'https://jss.live/docs/' },
-          { label: 'Try a different resolver', href: '?resolver=https://nostr.social' },
+          { label: 'Try the fallback resolver (nostr.social)', href: `?${alt}` },
         ],
       ), 'error');
       return false;
@@ -164,7 +169,7 @@ async function flow() {
     setStatus(`Could not build redirect URL from: ${base}`, 'error');
     return false;
   }
-  setStatus(`Found your pod: ${webId}. Taking you there now…`);
+  setStatus(`Found your WebID: ${webId}. Taking you to ${base}…`);
   setTimeout(() => { location.href = dest; }, 800);
   return true;
 }
@@ -174,8 +179,12 @@ function wire() {
   if (!button) return;
   button.addEventListener('click', async () => {
     button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
     const ok = await flow();
-    if (!ok) button.disabled = false;
+    if (!ok) {
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
+    }
   });
 }
 
