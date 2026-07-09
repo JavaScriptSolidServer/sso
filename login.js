@@ -6,6 +6,9 @@
 //     → fetch <resolver>/.well-known/did/nostr/<pubkey>.json
 //     → read alsoKnownAs[0] → WebID
 //     → redirect to that WebID's pod root
+//   or, without a signer: paste npub / hex pubkey / nsec (PoC,
+//   test keys only — nsec is reduced to its pubkey in memory)
+//   and the same resolve-and-redirect steps run.
 //
 // What this page does NOT do (yet):
 //   Establish an authenticated session AT the pod. The SSO page is
@@ -101,8 +104,62 @@ function waitForSigner(ms = 1500) {
   });
 }
 
+// ---- Manual key entry (PoC) ----
+// The current flow only ever needs a *public* key. nsec is accepted
+// so the "sign in with your private key" UX can be exercised with
+// throwaway keys before phase 2 (NIP-98 signing) lands. The key is
+// decoded in memory, reduced to its pubkey, and never stored.
+
+const BECH32_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+
+function polymodStep(pre) {
+  const b = pre >> 25;
+  let chk = (pre & 0x1ffffff) << 5;
+  const GEN = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+  for (let i = 0; i < 5; i++) if ((b >> i) & 1) chk ^= GEN[i];
+  return chk;
+}
+
+function bech32Decode(s) {
+  const pos = s.lastIndexOf('1');
+  if (pos < 1 || pos + 7 > s.length) return null;
+  const hrp = s.slice(0, pos);
+  const data = [...s.slice(pos + 1)].map((c) => BECH32_CHARSET.indexOf(c));
+  if (data.includes(-1)) return null;
+  let chk = 1;
+  for (const c of hrp) chk = polymodStep(chk) ^ (c.charCodeAt(0) >> 5);
+  chk = polymodStep(chk);
+  for (const c of hrp) chk = polymodStep(chk) ^ (c.charCodeAt(0) & 31);
+  for (const d of data) chk = polymodStep(chk) ^ d;
+  if (chk !== 1) return null;
+  let acc = 0, bits = 0;
+  const out = [];
+  for (const v of data.slice(0, -6)) {
+    acc = (acc << 5) | v; bits += 5;
+    if (bits >= 8) { bits -= 8; out.push((acc >> bits) & 255); }
+  }
+  return { hrp, bytes: new Uint8Array(out) };
+}
+
+const toHex = (bytes) => [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+
+async function pubkeyFromInput(raw) {
+  const s = raw.trim().toLowerCase();
+  if (!s) throw new Error('Enter a key first.');
+  if (/^[0-9a-f]{64}$/.test(s)) return s;
+  const dec = bech32Decode(s);
+  if (!dec || dec.bytes.length !== 32) {
+    throw new Error('Couldn’t parse that key — expected npub1…, nsec1…, or 64 hex characters.');
+  }
+  if (dec.hrp === 'npub') return toHex(dec.bytes);
+  if (dec.hrp === 'nsec') {
+    const { getPublicKey } = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2/+esm');
+    return getPublicKey(dec.bytes);
+  }
+  throw new Error(`Unsupported key type “${dec.hrp}” — expected npub or nsec.`);
+}
+
 async function flow() {
-  const { resolver, next } = readConfig();
   setStatus('Reading your Nostr identity…');
 
   // Step 1 — signer extension present?
@@ -134,6 +191,12 @@ async function flow() {
     setStatus(`Signer returned an invalid public key: ${pubkey}`, 'error');
     return false;
   }
+
+  return resolveAndGo(pubkey);
+}
+
+async function resolveAndGo(pubkey) {
+  const { resolver, next } = readConfig();
 
   // Step 3 — resolve via the well-known DID-doc endpoint
   setStatus(`Resolving did:nostr:${pubkey.slice(0, 8)}… via ${resolver}`);
@@ -219,6 +282,29 @@ function wire() {
   }
 
   button.addEventListener('click', run);
+
+  const toggle = document.querySelector('#alt-toggle');
+  const form = document.querySelector('#manual');
+  if (toggle && form) {
+    toggle.addEventListener('click', () => {
+      form.hidden = !form.hidden;
+      if (!form.hidden) form.querySelector('input').focus();
+    });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = form.querySelector('input');
+      const go = form.querySelector('button');
+      input.disabled = true; go.disabled = true;
+      try {
+        const pubkey = await pubkeyFromInput(input.value);
+        const ok = await resolveAndGo(pubkey);
+        if (!ok) { input.disabled = false; go.disabled = false; }
+      } catch (err) {
+        setStatus(err.message, 'error');
+        input.disabled = false; go.disabled = false;
+      }
+    });
+  }
 
   if (new URLSearchParams(location.search).has('resolver')) {
     // Arriving via a "Try the fallback resolver" link (or any explicit

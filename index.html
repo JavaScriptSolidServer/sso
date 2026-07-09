@@ -106,6 +106,42 @@
       animation: spin 0.7s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .linkish {
+      background: none; border: none; padding: 0;
+      color: var(--muted); font-size: 0.85rem;
+      cursor: pointer;
+      text-decoration: underline; text-underline-offset: 3px;
+    }
+    .linkish:hover { color: var(--accent); }
+    .linkish:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 2px; border-radius: 4px; }
+    #manual {
+      width: 100%; margin: 0;
+      display: flex; flex-wrap: wrap; gap: 0.6rem;
+      justify-content: center;
+    }
+    #manual[hidden] { display: none; }
+    #manual input {
+      flex: 1 1 14rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.9rem;
+      padding: 0.65rem 0.9rem;
+      border: 1px solid #d0d7de; border-radius: 10px;
+      color: var(--fg); min-width: 0;
+    }
+    #manual input:focus-visible { outline: 2px solid #c4b5fd; border-color: var(--accent); }
+    #manual button {
+      font-size: 0.95rem; font-weight: 600;
+      padding: 0.65rem 1.4rem;
+      background: var(--accent); color: white;
+      border: none; border-radius: 10px; cursor: pointer;
+    }
+    #manual button:hover { background: var(--accent-hover); }
+    #manual button:disabled { opacity: 0.6; cursor: progress; }
+    #manual button:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 2px; }
+    #manual .warn {
+      flex-basis: 100%; margin: 0;
+      font-size: 0.8rem; color: #9a6700;
+    }
     #status {
       color: var(--muted); font-size: 0.95rem;
       min-height: 4rem; max-width: 100%;
@@ -143,6 +179,14 @@
         <p class="tagline">One click. We resolve your Nostr / WebID. You land at your pod.</p>
       </header>
       <button id="signin">Sign in</button>
+      <button id="alt-toggle" type="button" class="linkish">No signer? Paste a key instead</button>
+      <form id="manual" hidden>
+        <input id="manual-key" autocomplete="off" spellcheck="false"
+               placeholder="npub1…, nsec1…, or 64-hex pubkey"
+               aria-label="Nostr public or private key">
+        <button type="submit">Go</button>
+        <p class="warn">Proof of concept — paste test keys only. Real keys belong in a signer.</p>
+      </form>
       <div id="status" aria-live="polite"></div>
     </div>
     <footer>
