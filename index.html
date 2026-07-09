@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <meta name="description" content="Universal one-click sign-in for Solid pods. Click the button — you're at your pod.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%236839e6'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/svg+xml" href="./solid-emblem.svg">
 
   <!-- Open Graph -->
   <meta property="og:title" content="JSS SSO — one click, you're at your pod">
@@ -18,9 +18,9 @@
       color-scheme: light;
       --bg: #fafbfc;
       --fg: #1f2328;
-      --accent: #6839e6;
-      --accent-2: #8b5cf6;
-      --accent-hover: #5328d4;
+      --accent: #7c4dff;
+      --accent-2: #9d7bff;
+      --accent-hover: #6a3de8;
       --muted: #656d76;
       --error: #cf222e;
       --error-bg: #fff5f5;
@@ -35,7 +35,7 @@
     }
     body {
       background:
-        radial-gradient(60rem 30rem at 50% -10%, rgba(104, 57, 230, 0.06), transparent 70%),
+        radial-gradient(60rem 30rem at 50% -10%, rgba(124, 77, 255, 0.06), transparent 70%),
         var(--bg);
     }
     main {
@@ -60,9 +60,8 @@
       align-items: center; gap: 0.9rem;
     }
     .logo {
-      width: 56px; height: 56px; border-radius: 50%;
-      background: radial-gradient(circle at 30% 30%, var(--accent-2), var(--accent));
-      box-shadow: 0 8px 24px rgba(104, 57, 230, 0.3);
+      width: 64px; height: auto; display: block;
+      filter: drop-shadow(0 6px 16px rgba(124, 77, 255, 0.35));
     }
     h1 {
       font-size: clamp(1.5rem, 4vw, 1.9rem);
@@ -82,18 +81,18 @@
       font-weight: 600;
       transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
       min-width: 14rem;
-      box-shadow: 0 2px 8px rgba(104, 57, 230, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      box-shadow: 0 2px 8px rgba(124, 77, 255, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
     }
     button#signin:hover {
       background: linear-gradient(180deg, var(--accent), var(--accent-hover));
       transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(104, 57, 230, 0.3);
+      box-shadow: 0 6px 16px rgba(124, 77, 255, 0.3);
     }
     button#signin:active { transform: translateY(0) scale(0.98); }
     button#signin:focus-visible { outline: 3px solid #c4b5fd; outline-offset: 3px; }
     button#signin:disabled {
       opacity: 0.75; cursor: progress;
-      transform: none; box-shadow: 0 2px 8px rgba(104, 57, 230, 0.25);
+      transform: none; box-shadow: 0 2px 8px rgba(124, 77, 255, 0.25);
     }
     button#signin[aria-busy="true"]::before {
       content: '';
@@ -139,7 +138,7 @@
   <main>
     <div class="card">
       <header>
-        <div class="logo" aria-hidden="true"></div>
+        <img class="logo" src="./solid-emblem.svg" alt="" aria-hidden="true">
         <h1>Sign in to Solid</h1>
         <p class="tagline">One click. We resolve your Nostr / WebID. You land at your pod.</p>
       </header>

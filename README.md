@@ -105,8 +105,9 @@ to the right host — is 0.0.6 on the roadmap.)
 Three sensible deployment targets:
 
 1. **GitHub Pages** on this repo (`gh-pages` branch is the default).
-2. **A Solid pod** — eats own dog food. Drop `index.html` + `login.js`
-   at `<pod>/sso/` and the SSO page itself becomes a Solid resource.
+2. **A Solid pod** — eats own dog food. Drop `index.html`, `login.js`
+   and `solid-emblem.svg` at `<pod>/sso/` and the SSO page itself
+   becomes a Solid resource.
 3. **`jss.live/sso/`** — pairs with the other JSS no-build apps
    ([JSS Git](https://jss.live/git/)).
 
